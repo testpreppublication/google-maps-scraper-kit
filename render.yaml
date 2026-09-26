@@ -11,6 +11,8 @@ services:
         generateValue: true
       - key: SCRAPER_BASE_URL
         value: http://127.0.0.1:8080
+      - key: PUBLIC_BASE_URL
+        value: https://testprep-school-search-api.onrender.com
       - key: MAX_DEPTH
         value: "10"
       - key: JOB_TIMEOUT_SECONDS
