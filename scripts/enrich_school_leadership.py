@@ -111,8 +111,13 @@ def social_candidates(person, role, school, city):
 
 def enrich(row):
     website = (row.get("website") or row.get("Website") or "").strip()
-    school = (row.get("name") or row.get("Name") or row.get("school_name") or "").strip()
+    school = (row.get("title") or row.get("name") or row.get("Name") or row.get("school_name") or "").strip()
     city = (row.get("city") or row.get("City") or "").strip()
+    if not city:
+        address = (row.get("address") or row.get("Address") or "").strip()
+        parts = [p.strip() for p in address.split(",") if p.strip()]
+        if len(parts) >= 2:
+            city = parts[-3] if len(parts) >= 3 else parts[-2]
     found, sources = [], []
     if website:
         if not website.startswith(("http://","https://")): website = "https://" + website
@@ -168,7 +173,7 @@ def main():
         rows = list(csv.DictReader(f))
     enriched = []
     for i,row in enumerate(rows,1):
-        print(f"[{i}/{len(rows)}] {row.get('name') or row.get('Name') or ''}", flush=True)
+        print(f"[{i}/{len(rows)}] {row.get('title') or row.get('name') or row.get('Name') or ''}", flush=True)
         enriched.append(enrich(dict(row)))
         time.sleep(args.delay)
     fields = list(dict.fromkeys([k for r in enriched for k in r.keys()]))
