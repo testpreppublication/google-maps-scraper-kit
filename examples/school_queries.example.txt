@@ -1,0 +1,6 @@
+# Example India school queries (one per line)
+CBSE schools in Lucknow
+ICSE schools in Lucknow
+international schools in Lucknow
+CBSE schools in Kanpur
+ICSE schools in Kanpur
