@@ -1,0 +1,19 @@
+FROM gosom/google-maps-scraper:v1.15.0
+
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY scripts/ ./scripts/
+COPY cloud/ ./cloud/
+
+RUN mkdir -p /data/jobs /gmapsdata
+
+ENV SCRAPER_BASE_URL=http://127.0.0.1:8080 \
+    JOBS_DIR=/data/jobs \
+    PYTHONUNBUFFERED=1
+
+ENTRYPOINT []
+CMD ["python3", "cloud/server.py"]
