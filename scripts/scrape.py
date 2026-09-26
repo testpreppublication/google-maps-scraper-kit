@@ -23,7 +23,37 @@ KEY = os.environ.get("SCRAPER_API_KEY", "")
 # Money-useful LEAD fields only — what you actually use to contact/qualify a lead.
 # Everything else (geo coordinates, IDs, hours, images, reviews blobs…) is dropped by default.
 LEAD = ["title", "phone", "emails", "website", "category", "address", "review_rating", "review_count"]
-UA = "google-maps-scraper-kit/1.0 (https://github.com/Mahanaicoach/google-maps-scraper-kit)"
+UA = "testprep-school-search/1.0 (+https://github.com/testpreppublication/google-maps-scraper-kit)"
+CITY_COORDS = {
+    "lucknow": ("26.8467", "80.9462"),
+    "kanpur": ("26.4499", "80.3319"),
+    "noida": ("28.5355", "77.3910"),
+    "ghaziabad": ("28.6692", "77.4538"),
+    "delhi": ("28.6139", "77.2090"),
+    "new delhi": ("28.6139", "77.2090"),
+    "mumbai": ("19.0760", "72.8777"),
+    "bengaluru": ("12.9716", "77.5946"),
+    "bangalore": ("12.9716", "77.5946"),
+    "hyderabad": ("17.3850", "78.4867"),
+    "kolkata": ("22.5726", "88.3639"),
+    "chennai": ("13.0827", "80.2707"),
+    "pune": ("18.5204", "73.8567"),
+    "jaipur": ("26.9124", "75.7873"),
+    "ahmedabad": ("23.0225", "72.5714"),
+    "surat": ("21.1702", "72.8311"),
+    "indore": ("22.7196", "75.8577"),
+    "bhopal": ("23.2599", "77.4126"),
+    "patna": ("25.5941", "85.1376"),
+    "ranchi": ("23.3441", "85.3096"),
+    "bhubaneswar": ("20.2961", "85.8245"),
+    "chandigarh": ("30.7333", "76.7794"),
+    "dehradun": ("30.3165", "78.0322"),
+    "varanasi": ("25.3176", "82.9739"),
+    "prayagraj": ("25.4358", "81.8463"),
+    "allahabad": ("25.4358", "81.8463"),
+    "agra": ("27.1767", "78.0081"),
+    "meerut": ("28.9845", "77.7064"),
+}
 
 
 def req(method, path, body=None):
@@ -37,7 +67,12 @@ def req(method, path, body=None):
 
 
 def geocode(place):
-    """City/place name -> ('lat','lon') strings via Nominatim, or None."""
+    """City/place name -> ('lat','lon') strings. Uses a local cache first, then Nominatim."""
+    normalized = re.sub(r"[^a-z ]+", " ", place.lower())
+    for name, coords in CITY_COORDS.items():
+        if re.search(rf"\b{re.escape(name)}\b", normalized):
+            print(f"  using cached coordinates for {name}", flush=True)
+            return coords
     q = urllib.parse.urlencode({"format": "json", "limit": 1, "q": place})
     url = f"https://nominatim.openstreetmap.org/search?{q}"
     r = urllib.request.Request(url, headers={"User-Agent": UA})

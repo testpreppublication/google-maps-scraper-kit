@@ -11,6 +11,7 @@ Without a key the script still discovers leadership from school websites and wri
 """
 
 import argparse, csv, html, json, os, re, time
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote, urljoin, urlparse
 from urllib.request import Request, urlopen
 
@@ -30,7 +31,7 @@ SOCIAL_DOMAINS = {
     "instagram": "instagram.com/",
 }
 
-def fetch(url, timeout=12):
+def fetch(url, timeout=6):
     req = Request(url, headers={"User-Agent": UA, "Accept": "text/html,*/*"})
     with urlopen(req, timeout=timeout) as r:
         return r.read(1_500_000).decode("utf-8", "ignore")
@@ -51,7 +52,7 @@ def leadership_pages(home_url, page):
         u = urljoin(home_url, href)
         if same_host(home_url, u) and any(h in (u + " " + label).lower() for h in LEADERSHIP_HINTS):
             links.append(u)
-    return list(dict.fromkeys(links))[:10]
+    return list(dict.fromkeys(links))[:5]
 
 def extract_people(page_text):
     people = []
@@ -119,13 +120,17 @@ def enrich(row):
         if len(parts) >= 2:
             city = parts[-3] if len(parts) >= 3 else parts[-2]
     found, sources = [], []
+    discovered_emails = []
     if website:
         if not website.startswith(("http://","https://")): website = "https://" + website
         try:
             home = fetch(website)
+            discovered_emails.extend(re.findall(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", home, re.I))
             for u in leadership_pages(website, home):
                 try:
-                    txt = textify(home if u == website else fetch(u))
+                    raw_page = home if u == website else fetch(u)
+                    discovered_emails.extend(re.findall(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", raw_page, re.I))
+                    txt = textify(raw_page)
                     for role, person in extract_people(txt):
                         found.append((role, person, u))
                     sources.append(u)
@@ -133,6 +138,13 @@ def enrich(row):
                     pass
         except Exception:
             pass
+    if not row.get("emails"):
+        emails = []
+        for addr in discovered_emails:
+            addr = addr.strip(".,;:()[]<>").lower()
+            if addr and addr not in emails:
+                emails.append(addr)
+        row["emails"] = "; ".join(emails[:5])
     # Priority is encoded by ROLE_PATTERNS order.
     rank = {role:i for i,(role,_) in enumerate(ROLE_PATTERNS)}
     found = sorted(list(dict.fromkeys(found)), key=lambda x: rank.get(x[0], 99))
@@ -167,15 +179,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("input_csv")
     ap.add_argument("-o","--output", default="school_leadership_enriched.csv")
-    ap.add_argument("--delay", type=float, default=0.5, help="Delay between schools")
+    ap.add_argument("--delay", type=float, default=0.0, help="Optional delay between completed rows")
+    ap.add_argument("--workers", type=int, default=8, help="Parallel website enrichment workers")
+    ap.add_argument("--skip-email", action="store_true", help="Do not add emails discovered on school websites")
     args = ap.parse_args()
     with open(args.input_csv, newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     enriched = []
-    for i,row in enumerate(rows,1):
-        print(f"[{i}/{len(rows)}] {row.get('title') or row.get('name') or row.get('Name') or ''}", flush=True)
-        enriched.append(enrich(dict(row)))
-        time.sleep(args.delay)
+    def work(row):
+        out = enrich(dict(row))
+        if args.skip_email:
+            out["emails"] = ""
+        return out
+    workers = max(1, min(16, args.workers))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for i, out in enumerate(ex.map(work, rows), 1):
+            print(f"[{i}/{len(rows)}] enriched {out.get('title') or out.get('name') or out.get('Name') or ''}", flush=True)
+            enriched.append(out)
+            if args.delay:
+                time.sleep(args.delay)
     fields = list(dict.fromkeys([k for r in enriched for k in r.keys()]))
     with open(args.output, "w", newline="", encoding="utf-8-sig") as f:
         w=csv.DictWriter(f, fieldnames=fields); w.writeheader(); w.writerows(enriched)

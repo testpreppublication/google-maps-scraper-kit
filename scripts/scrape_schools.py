@@ -163,18 +163,20 @@ def main():
             "--depth", str(args.depth),
             "--out", str(maps_csv),
             "--socials",
+            "--no-email",
         ]
-        if args.no_email:
-            cmd.append("--no-email")
 
-        print("\n=== Stage 1/2: Google Maps school leads + official school socials ===")
+        print("\n=== Stage 1/2: Google Maps school leads + official school socials (fast Maps mode) ===", flush=True)
         subprocess.run(cmd, cwd=ROOT, check=True)
 
-        print("\n=== Stage 2/2: leadership + person social-profile candidates ===")
-        subprocess.run([
+        print("\n=== Stage 2/2: parallel website enrichment (leadership + emails + person social-profile candidates) ===", flush=True)
+        enrich_cmd = [
             sys.executable, str(ENRICH), str(maps_csv),
-            "-o", str(enriched_csv), "--delay", str(args.delay)
-        ], cwd=ROOT, check=True)
+            "-o", str(enriched_csv), "--delay", str(args.delay), "--workers", "8"
+        ]
+        if args.no_email:
+            enrich_cmd.append("--skip-email")
+        subprocess.run(enrich_cmd, cwd=ROOT, check=True)
 
         reorder_csv(enriched_csv)
         out.parent.mkdir(parents=True, exist_ok=True)
