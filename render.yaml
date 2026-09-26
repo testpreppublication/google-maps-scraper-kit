@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: testprep-school-search-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.cloud
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: SCHOOL_API_KEY
+        generateValue: true
+      - key: SCRAPER_BASE_URL
+        value: http://127.0.0.1:8080
+      - key: MAX_DEPTH
+        value: "10"
+      - key: JOB_TIMEOUT_SECONDS
+        value: "1200"

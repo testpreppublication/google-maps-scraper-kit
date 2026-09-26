@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: Testprep School Search API
+  version: 1.0.0
+  description: Search for schools, enrich public leadership information, and return structured results.
+servers:
+  - url: https://YOUR-RENDER-SERVICE.onrender.com
+paths:
+  /v1/school-search:
+    post:
+      operationId: startSchoolSearch
+      summary: Start a school search and enrichment job
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query, city]
+              properties:
+                query:
+                  type: string
+                  example: CBSE schools in Lucknow
+                city:
+                  type: string
+                  example: Lucknow, Uttar Pradesh
+                depth:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 5
+                no_email:
+                  type: boolean
+                  default: false
+      responses:
+        "202":
+          description: Job accepted
+  /v1/jobs/{job_id}:
+    get:
+      operationId: getSchoolSearchJob
+      summary: Check job status and get a preview
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Job status}
+  /v1/jobs/{job_id}/results:
+    get:
+      operationId: getSchoolSearchResults
+      summary: Get completed school results as JSON
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500, default: 100}
+      responses:
+        "200": {description: Result records}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
